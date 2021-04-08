@@ -72,7 +72,7 @@ fn login(
         if results.len() == 0 {
             return Redirect::to("/");
         }
-        let result = bcrypt::verify(&user.password, &results[0].password).unwrap_or_default();
+        let result = bcrypt::verify(&user.password, &results[0].password).unwrap_or(false);
 
         if !result {
             return Redirect::to("/");
@@ -81,8 +81,8 @@ fn login(
         if results.len() == 1 {
             return Redirect::to("/register");
         }
-        let hash = bcrypt::hash(&user.password, 1).unwrap_or_default();
-        if hash == "" {
+        let hash = bcrypt::hash(&user.password, 10).unwrap_or(String::new());
+        if hash.len() == 0 {
             return Redirect::to("/");
         }
 
