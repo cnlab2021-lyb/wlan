@@ -91,6 +91,24 @@ fn login(
             .expect("Error inserting new user");
     }
 
+    let ipt = iptables::new(false).unwrap();
+    let ifname = env!("IFNAME");
+    assert!(ipt
+        .insert(
+            "nat",
+            "PREROUTING",
+            format!("-i {} -s {} -j ACCEPT", ifname, addr).as_str(),
+            3  // TODO: Proper ordering
+        )
+        .is_ok());
+    assert!(ipt
+        .append(
+            "filter",
+            "FORWARD",
+            format!("-i {} -s {} -j ACCEPT", ifname, addr).as_str()
+        )
+        .is_ok());
+
     Redirect::to("/success")
 }
 
