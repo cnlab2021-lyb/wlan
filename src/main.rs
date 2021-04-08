@@ -11,7 +11,7 @@ use rocket_contrib::templates::Template;
 extern crate bcrypt;
 extern crate rocket_client_addr;
 
-use rocket::request::Form;
+use rocket::request::{Form, Request};
 use rocket::response::{NamedFile, Redirect};
 use rocket_client_addr::ClientAddr;
 use std::process::Command;
@@ -180,8 +180,13 @@ fn spectrecss() -> io::Result<NamedFile> {
     NamedFile::open("static/spectre.min.css")
 }
 
+#[catch(404)]
+fn not_found(_req: &Request) -> Redirect {
+    Redirect::to("/")
+}
 fn main() {
     rocket::ignite()
+        .register(catchers![not_found])
         .attach(UsersDbConn::fairing())
         .attach(Template::fairing())
         .mount("/", routes![index, login, monitor, success, spectrecss])
