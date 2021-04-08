@@ -6,6 +6,7 @@ extern crate rocket;
 #[macro_use]
 extern crate rocket_contrib;
 
+extern crate bcrypt;
 extern crate rocket_client_addr;
 
 use rocket::request::Form;
@@ -67,26 +68,33 @@ fn login(
         .expect("Error loading users");
     assert!(results.len() <= 1);
 
-    // TODO(waynetu): Finish the logic
     if !is_register {
         if results.len() == 0 {
-            return Redirect::to("/index");
+            return Redirect::to("/");
         }
-        let _db_user = &results[0];
-    }
+        let result = bcrypt::verify(&user.password, &results[0].password).unwrap_or_default();
 
-    if is_register && results.len() == 1 {
-        return Redirect::to("/register");
-    }
+        if !result {
+            return Redirect::to("/");
+        }
+    } else {
+        if results.len() == 1 {
+            return Redirect::to("/register");
+        }
+        let hash = bcrypt::hash(&user.password, 1).unwrap_or_default();
+        if hash == "" {
+            return Redirect::to("/");
+        }
 
-    let new_user = User {
-        username: user.username.clone(),
-        password: user.password.clone(),
-    };
-    diesel::insert_into(users::table)
-        .values(&new_user)
-        .execute(&*db_conn)
-        .expect("Error inserting new user");
+        let new_user = User {
+            username: user.username.clone(),
+            password: hash,
+        };
+        diesel::insert_into(users::table)
+            .values(&new_user)
+            .execute(&*db_conn)
+            .expect("Error inserting new user");
+    }
 
     Redirect::to("/success")
 }
