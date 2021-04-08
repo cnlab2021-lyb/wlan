@@ -94,7 +94,7 @@ fn test_parse_iptables() {
 fn monitor() -> Template {
     let output = Command::new("sh")
         .arg("-c")
-        .arg("iptables -vnL FORWARD -t filter")
+        .arg("iptables -vnxL FORWARD -t filter")
         .output()
         .expect("Failed to execute iptables -vnL");
     let context = TemplateContext {
