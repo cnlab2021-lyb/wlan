@@ -14,7 +14,8 @@ extern crate rocket_client_addr;
 use rocket::request::Form;
 use rocket::response::{NamedFile, Redirect};
 use rocket_client_addr::ClientAddr;
-use std::{io, vec};
+use std::process::Command;
+use std::{fmt, io, vec};
 
 #[macro_use]
 extern crate diesel;
@@ -34,7 +35,7 @@ pub struct User {
     pub password: String,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, PartialEq, Eq, fmt::Debug)]
 struct Record {
     ip: String,
     usage: usize,
@@ -55,13 +56,47 @@ fn index(client_addr: ClientAddr) -> io::Result<NamedFile> {
     NamedFile::open("static/index.html")
 }
 
+fn parse_iptables(output: String) -> Vec<Record> {
+    output
+        .lines()
+        .skip(2)
+        .into_iter()
+        .map(|line| {
+            let stat: Vec<_> = line.split_whitespace().into_iter().collect();
+            Record {
+                ip: String::from(stat[7]),
+                usage: stat[0].parse::<usize>().unwrap(),
+            }
+        })
+        .collect()
+}
+
+#[test]
+fn test_parse_iptables() {
+    let output = String::from(
+        r#"Chain FORWARD (policy ACCEPT 57482 packets, 55M bytes)
+ pkts bytes target     prot opt in     out     source               destination
+  424 69044 ACCEPT     all  --  ap0    *       192.168.12.34        0.0.0.0/0   "#,
+    );
+    assert_eq!(
+        parse_iptables(output),
+        vec![Record {
+            ip: String::from("192.168.12.34"),
+            usage: 424 as usize,
+        }]
+    );
+}
+
 #[get("/monitor")]
 fn monitor() -> Template {
-    let mut context = TemplateContext { records: vec![] };
-    context.records.push(Record {
-        ip: String::from("1.2.3.4"),
-        usage: 7122 as usize,
-    });
+    let output = Command::new("sh")
+        .arg("-c")
+        .arg("iptables -vnL FORWARD -t filter")
+        .output()
+        .expect("Failed to execute iptables -vnL");
+    let context = TemplateContext {
+        records: parse_iptables(String::from_utf8(output.stdout).unwrap()),
+    };
     Template::render("monitor", &context)
 }
 
