@@ -42,11 +42,6 @@ fn index(client_addr: ClientAddr) -> io::Result<NamedFile> {
     NamedFile::open("static/index.html")
 }
 
-#[get("/register")]
-fn register() -> io::Result<NamedFile> {
-    NamedFile::open("static/register.html")
-}
-
 #[post("/login?<is_register>", data = "<user>")]
 fn login(
     user: Form<User>,
@@ -79,7 +74,7 @@ fn login(
         }
     } else {
         if results.len() == 1 {
-            return Redirect::to("/register");
+            return Redirect::to("/");
         }
         let hash = bcrypt::hash(&user.password, 10).unwrap_or(String::new());
         if hash.len() == 0 {
@@ -104,9 +99,14 @@ fn success() -> io::Result<NamedFile> {
     NamedFile::open("static/success.html")
 }
 
+#[get("/spectre.min.css")]
+fn spectrecss() -> io::Result<NamedFile> {
+    NamedFile::open("static/spectre.min.css")
+}
+
 fn main() {
     rocket::ignite()
         .attach(UsersDbConn::fairing())
-        .mount("/", routes![index, login, register, success])
+        .mount("/", routes![index, login, success, spectrecss])
         .launch();
 }
