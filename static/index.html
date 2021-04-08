@@ -5,7 +5,7 @@
 <body class="container">
     <div class="columns">
         <div class="column col-mx-auto col-6">
-            <h1>LYB Captive Portal Login</h1>
+            <h1>LYB Captive Portal</h1>
             <form action="/login" method="post">
                 <div class="form-group">
                     <label class="form-label" for="username">Name:</label>
@@ -22,7 +22,7 @@
     </div>
     <script>
         if (window.location.host != "192.168.12.1") {
-            document.location.href = "http://192.168.12.1";
+            document.location.href = "http://192.168.12.1:8000";
         }
     </script>
 </body>
