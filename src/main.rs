@@ -6,13 +6,15 @@ extern crate rocket;
 #[macro_use]
 extern crate rocket_contrib;
 
+use rocket_contrib::templates::Template;
+
 extern crate bcrypt;
 extern crate rocket_client_addr;
 
 use rocket::request::Form;
 use rocket::response::{NamedFile, Redirect};
 use rocket_client_addr::ClientAddr;
-use std::io;
+use std::{io, vec};
 
 #[macro_use]
 extern crate diesel;
@@ -32,6 +34,17 @@ pub struct User {
     pub password: String,
 }
 
+#[derive(serde::Serialize)]
+struct Record {
+    ip: String,
+    usage: usize,
+}
+
+#[derive(serde::Serialize)]
+struct TemplateContext {
+    records: Vec<Record>,
+}
+
 #[database("user_db")]
 struct UsersDbConn(diesel::SqliteConnection);
 
@@ -40,6 +53,16 @@ fn index(client_addr: ClientAddr) -> io::Result<NamedFile> {
     let addr = client_addr.get_ipv4().unwrap();
     eprintln!("{} is asking for WiFi.", addr);
     NamedFile::open("static/index.html")
+}
+
+#[get("/monitor")]
+fn monitor() -> Template {
+    let mut context = TemplateContext { records: vec![] };
+    context.records.push(Record {
+        ip: String::from("1.2.3.4"),
+        usage: 7122 as usize,
+    });
+    Template::render("monitor", &context)
 }
 
 #[post("/login?<is_register>", data = "<user>")]
@@ -98,7 +121,7 @@ fn login(
             "nat",
             "PREROUTING",
             format!("-i {} -s {} -j ACCEPT", ifname, addr).as_str(),
-            3  // TODO: Proper ordering
+            3 // TODO: Proper ordering
         )
         .is_ok());
     assert!(ipt
@@ -125,6 +148,10 @@ fn spectrecss() -> io::Result<NamedFile> {
 fn main() {
     rocket::ignite()
         .attach(UsersDbConn::fairing())
-        .mount("/", routes![index, login, success, spectrecss])
+        .attach(Template::fairing())
+        .mount(
+            "/",
+            routes![index, login, monitor, register, success, spectrecss],
+        )
         .launch();
 }

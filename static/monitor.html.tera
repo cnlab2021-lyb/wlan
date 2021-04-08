@@ -1,0 +1,10 @@
+<html>
+<body>
+<h1>Monitor</h1>
+<ul>
+  {% for record in records %}
+      <li>{{ record.ip }}: {{ record.usage }}</li>
+  {% endfor %}
+</ul>
+</body>
+</html>
