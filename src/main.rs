@@ -38,7 +38,8 @@ pub struct User {
 #[derive(serde::Serialize, PartialEq, Eq, fmt::Debug)]
 struct Record {
     ip: String,
-    usage: usize,
+    packets: usize,
+    bytes: usize,
 }
 
 #[derive(serde::Serialize)]
@@ -65,7 +66,8 @@ fn parse_iptables(output: String) -> Vec<Record> {
             let stat: Vec<_> = line.split_whitespace().into_iter().collect();
             Record {
                 ip: String::from(stat[7]),
-                usage: stat[0].parse::<usize>().unwrap(),
+                packets: stat[0].parse::<usize>().unwrap(),
+                bytes: stat[1].parse::<usize>().unwrap(),
             }
         })
         .collect()
@@ -82,7 +84,8 @@ fn test_parse_iptables() {
         parse_iptables(output),
         vec![Record {
             ip: String::from("192.168.12.34"),
-            usage: 424 as usize,
+            packets: 424 as usize,
+            bytes: 69044 as usize,
         }]
     );
 }
