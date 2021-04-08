@@ -149,9 +149,6 @@ fn main() {
     rocket::ignite()
         .attach(UsersDbConn::fairing())
         .attach(Template::fairing())
-        .mount(
-            "/",
-            routes![index, login, monitor, register, success, spectrecss],
-        )
+        .mount("/", routes![index, login, monitor, success, spectrecss])
         .launch();
 }
