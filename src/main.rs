@@ -42,6 +42,7 @@ struct Record {
     ip: String,
     packets: usize,
     bytes: usize,
+    blocked: bool,
 }
 
 #[derive(serde::Serialize)]
@@ -70,6 +71,7 @@ fn parse_iptables(output: String) -> Vec<Record> {
                 ip: String::from(stat[7]),
                 packets: stat[0].parse::<usize>().unwrap(),
                 bytes: stat[1].parse::<usize>().unwrap(),
+                blocked: stat[2] == "DROP",
             }
         })
         .collect()
@@ -88,6 +90,21 @@ fn test_parse_iptables() {
             ip: String::from("192.168.12.34"),
             packets: 424 as usize,
             bytes: 69044 as usize,
+            blocked: false,
+        }]
+    );
+    let output = String::from(
+        r#"Chain FORWARD (policy ACCEPT 57482 packets, 55M bytes)
+ pkts bytes target     prot opt in     out     source               destination
+  424 69044 DROP       all  --  ap0    *       192.168.12.34        0.0.0.0/0   "#,
+    );
+    assert_eq!(
+        parse_iptables(output),
+        vec![Record {
+            ip: String::from("192.168.12.34"),
+            packets: 424 as usize,
+            bytes: 69044 as usize,
+            blocked: true,
         }]
     );
 }
@@ -208,6 +225,31 @@ fn block(ip: Option<String>, client_addr: ClientAddr) -> Result<NamedFile, Forbi
     NamedFile::open("static/success.html").map_err(|e| Forbidden(Some(e.to_string())))
 }
 
+#[post("/unblock/<ip>")]
+fn unblock(ip: Option<String>) -> io::Result<NamedFile> {
+    let addr = ip.unwrap();
+    eprintln!("Unblocking {}", addr);
+    let ipt = iptables::new(false).unwrap();
+    let ifname = std::env::var("IFNAME").unwrap();
+    assert!(ipt
+        .delete(
+            "filter",
+            "FORWARD",
+            format!("-i {} -s {} -j DROP", ifname, addr).as_str(),
+            1
+        )
+        .is_ok());
+    assert!(ipt
+        .delete(
+            "filter",
+            "INPUT",
+            format!("-i {} -s {} -j DROP", ifname, addr).as_str(),
+            1
+        )
+        .is_ok());
+    NamedFile::open("static/success.html")
+}
+
 #[get("/success")]
 fn success() -> io::Result<NamedFile> {
     NamedFile::open("static/success.html")
@@ -230,7 +272,7 @@ fn main() {
         .attach(Template::fairing())
         .mount(
             "/",
-            routes![index, login, monitor, block, success, spectrecss],
+            routes![index, login, monitor, block, unblock, success, spectrecss],
         )
         .launch();
 }

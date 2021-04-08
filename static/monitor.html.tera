@@ -21,11 +21,19 @@
                         <td>{{ record.ip }}</td>
                         <td>{{ record.packets }}</td>
                         <td>{{ record.bytes }}</td>
-                        <td>
-                            <form action="block/{{ record.ip }}" method="post" style="margin: 0">
-                                <button class="btn">Block</a>
-                            </form>
-                        </td>
+                        {% if record.blocked %}
+                          <td>
+                              <form action="unblock/{{ record.ip }}" method="post" style="margin: 0">
+                                  <button class="btn">Unblock</a>
+                              </form>
+                          </td>
+                        {% else %}
+                          <td>
+                              <form action="block/{{ record.ip }}" method="post" style="margin: 0">
+                                  <button class="btn">Block</a>
+                              </form>
+                          </td>
+                        {% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>
