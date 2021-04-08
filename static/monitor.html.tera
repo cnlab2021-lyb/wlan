@@ -1,10 +1,36 @@
 <html>
-<body>
-<h1>Monitor</h1>
-<ul>
-  {% for record in records %}
-      <li>{{ record.ip }} - {{ record.packets }} - {{ record.bytes }}</li>
-  {% endfor %}
-</ul>
+<head>
+    <link rel="stylesheet" href="spectre.min.css">
+</head>
+<body class="container">
+    <div class="columns">
+        <div class="column col-mx-auto col-6">
+            <h1>Monitor</h1>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>IP Address</th>
+                        <th>Packets</th>
+                        <th>Bandwidth (B)</th>
+                        <th>Block</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr>
+                        <td>{{ record.ip }}</td>
+                        <td>{{ record.packets }}</td>
+                        <td>{{ record.bytes }}</td>
+                        <td>
+                            <form action="block/{{ record.ip }}" style="margin: 0">
+                                <button class="btn">Block</a>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </body>
 </html>
