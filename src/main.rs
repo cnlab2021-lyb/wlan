@@ -12,8 +12,10 @@ extern crate bcrypt;
 extern crate rocket_client_addr;
 
 use rocket::request::{Form, Request};
+use rocket::response::status::Forbidden;
 use rocket::response::{NamedFile, Redirect};
 use rocket_client_addr::ClientAddr;
+use std::net::Ipv4Addr;
 use std::process::Command;
 use std::{fmt, io, vec};
 
@@ -91,7 +93,11 @@ fn test_parse_iptables() {
 }
 
 #[get("/monitor")]
-fn monitor() -> Template {
+fn monitor(client_addr: ClientAddr) -> Result<Template, Forbidden<String>> {
+    let src_addr = client_addr.get_ipv4().unwrap();
+    if src_addr != Ipv4Addr::new(127, 0, 0, 1) {
+        return Err(Forbidden(Some("Source not from localhost.".to_string())));
+    }
     let output = Command::new("sh")
         .arg("-c")
         .arg("iptables -vnxL FORWARD -t filter")
@@ -100,7 +106,7 @@ fn monitor() -> Template {
     let context = TemplateContext {
         records: parse_iptables(String::from_utf8(output.stdout).unwrap()),
     };
-    Template::render("monitor", &context)
+    Ok(Template::render("monitor", &context))
 }
 
 #[post("/login?<is_register>", data = "<user>")]
@@ -174,7 +180,11 @@ fn login(
 }
 
 #[post("/block/<ip>")]
-fn block(ip: Option<String>) -> io::Result<NamedFile> {
+fn block(ip: Option<String>, client_addr: ClientAddr) -> Result<NamedFile, Forbidden<String>> {
+    let src_addr = client_addr.get_ipv4().unwrap();
+    if src_addr != Ipv4Addr::new(127, 0, 0, 1) {
+        return Err(Forbidden(Some("Source not from localhost.".to_string())));
+    }
     let addr = ip.unwrap();
     eprintln!("Blocking {}", addr);
     let ipt = iptables::new(false).unwrap();
@@ -195,7 +205,7 @@ fn block(ip: Option<String>) -> io::Result<NamedFile> {
             1
         )
         .is_ok());
-    NamedFile::open("static/success.html")
+    NamedFile::open("static/success.html").map_err(|e| Forbidden(Some(e.to_string())))
 }
 
 #[get("/success")]

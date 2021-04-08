@@ -3,4 +3,4 @@ user_db = { url = "db.sqlite" }
 
 [global]
 template_dir = "static/"
-address = "0.0.0.0"
+address = "::"
