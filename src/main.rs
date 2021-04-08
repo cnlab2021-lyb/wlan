@@ -207,6 +207,20 @@ fn block(ip: Option<String>, client_addr: ClientAddr) -> Result<NamedFile, Forbi
     let ipt = iptables::new(false).unwrap();
     let ifname = std::env::var("IFNAME").unwrap();
     assert!(ipt
+        .delete(
+            "nat",
+            "PREROUTING",
+            format!("-i {} -s {} -j ACCEPT", ifname, addr).as_str()
+        )
+        .is_ok());
+    assert!(ipt
+        .delete(
+            "filter",
+            "FORWARD",
+            format!("-i {} -s {} -j ACCEPT", ifname, addr).as_str()
+        )
+        .is_ok());
+    assert!(ipt
         .insert(
             "filter",
             "FORWARD",
@@ -235,16 +249,14 @@ fn unblock(ip: Option<String>) -> io::Result<NamedFile> {
         .delete(
             "filter",
             "FORWARD",
-            format!("-i {} -s {} -j DROP", ifname, addr).as_str(),
-            1
+            format!("-i {} -s {} -j DROP", ifname, addr).as_str()
         )
         .is_ok());
     assert!(ipt
         .delete(
             "filter",
             "INPUT",
-            format!("-i {} -s {} -j DROP", ifname, addr).as_str(),
-            1
+            format!("-i {} -s {} -j DROP", ifname, addr).as_str()
         )
         .is_ok());
     NamedFile::open("static/success.html")
