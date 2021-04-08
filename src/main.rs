@@ -173,6 +173,31 @@ fn login(
     Redirect::to("/success")
 }
 
+#[post("/block/<ip>")]
+fn block(ip: Option<String>) -> io::Result<NamedFile> {
+    let addr = ip.unwrap();
+    eprintln!("Blocking {}", addr);
+    let ipt = iptables::new(false).unwrap();
+    let ifname = env!("IFNAME");
+    assert!(ipt
+        .insert(
+            "filter",
+            "FORWARD",
+            format!("-i {} -s {} -j DROP", ifname, addr).as_str(),
+            1
+        )
+        .is_ok());
+    assert!(ipt
+        .insert(
+            "filter",
+            "INPUT",
+            format!("-i {} -s {} -j DROP", ifname, addr).as_str(),
+            1
+        )
+        .is_ok());
+    NamedFile::open("static/success.html")
+}
+
 #[get("/success")]
 fn success() -> io::Result<NamedFile> {
     NamedFile::open("static/success.html")
@@ -187,11 +212,15 @@ fn spectrecss() -> io::Result<NamedFile> {
 fn not_found(_req: &Request) -> Redirect {
     Redirect::to("/")
 }
+
 fn main() {
     rocket::ignite()
         .register(catchers![not_found])
         .attach(UsersDbConn::fairing())
         .attach(Template::fairing())
-        .mount("/", routes![index, login, monitor, success, spectrecss])
+        .mount(
+            "/",
+            routes![index, login, monitor, block, success, spectrecss],
+        )
         .launch();
 }
