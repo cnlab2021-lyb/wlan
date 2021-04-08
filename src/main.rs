@@ -153,7 +153,7 @@ fn login(
     }
 
     let ipt = iptables::new(false).unwrap();
-    let ifname = env!("IFNAME");
+    let ifname = std::env::var("IFNAME").unwrap();
     assert!(ipt
         .insert(
             "nat",
@@ -178,7 +178,7 @@ fn block(ip: Option<String>) -> io::Result<NamedFile> {
     let addr = ip.unwrap();
     eprintln!("Blocking {}", addr);
     let ipt = iptables::new(false).unwrap();
-    let ifname = env!("IFNAME");
+    let ifname = std::env::var("IFNAME").unwrap();
     assert!(ipt
         .insert(
             "filter",
