@@ -32,16 +32,16 @@ table! {
 }
 
 #[derive(Queryable, Insertable, FromForm)]
-pub struct User {
-    pub username: String,
-    pub password: String,
+struct User {
+    username: String,
+    password: String,
 }
 
-#[derive(serde::Serialize, PartialEq, Eq, fmt::Debug)]
+#[derive(serde::Serialize, PartialEq, fmt::Debug)]
 struct Record {
     ip: String,
     packets: usize,
-    bytes: usize,
+    bandwidth: usize,
     blocked: bool,
 }
 
@@ -70,7 +70,7 @@ fn parse_iptables(output: String) -> Vec<Record> {
             Record {
                 ip: String::from(stat[7]),
                 packets: stat[0].parse::<usize>().unwrap(),
-                bytes: stat[1].parse::<usize>().unwrap(),
+                bandwidth: stat[1].parse::<usize>().unwrap(),
                 blocked: stat[2] == "DROP",
             }
         })
@@ -89,7 +89,7 @@ fn test_parse_iptables() {
         vec![Record {
             ip: String::from("192.168.12.34"),
             packets: 424 as usize,
-            bytes: 69044 as usize,
+            bandwidth: 69044 as usize,
             blocked: false,
         }]
     );
@@ -103,23 +103,23 @@ fn test_parse_iptables() {
         vec![Record {
             ip: String::from("192.168.12.34"),
             packets: 424 as usize,
-            bytes: 69044 as usize,
+            bandwidth: 69044 as usize,
             blocked: true,
         }]
     );
 }
 
 #[get("/monitor")]
-fn monitor(client_addr: ClientAddr) -> Result<Template, Forbidden<String>> {
+fn monitor(client_addr: ClientAddr) -> Result<Template, Forbidden<&'static str>> {
     let src_addr = client_addr.get_ipv4().unwrap();
     if src_addr != Ipv4Addr::new(127, 0, 0, 1) {
-        return Err(Forbidden(Some("Source not from localhost.".to_string())));
+        return Err(Forbidden(Some("Source not from localhost.")));
     }
     let output = Command::new("sh")
         .arg("-c")
         .arg("iptables -vnxL FORWARD -t filter")
         .output()
-        .expect("Failed to execute iptables -vnL");
+        .expect("Failed to execute iptables -vnxL");
     let context = TemplateContext {
         records: parse_iptables(String::from_utf8(output.stdout).unwrap()),
     };
@@ -138,8 +138,6 @@ fn login(
 
     let is_register = is_register.unwrap_or_default();
     let addr = client_addr.get_ipv4().unwrap();
-    eprintln!("is_register = {} addr = {}", is_register, addr);
-    eprintln!("name: {}, password: {}", user.username, user.password);
     let results = users
         .filter(username.eq(&user.username))
         .limit(1)
@@ -197,10 +195,10 @@ fn login(
 }
 
 #[post("/block/<ip>")]
-fn block(ip: Option<String>, client_addr: ClientAddr) -> Result<NamedFile, Forbidden<String>> {
+fn block(ip: Option<String>, client_addr: ClientAddr) -> Result<NamedFile, Forbidden<&'static str>> {
     let src_addr = client_addr.get_ipv4().unwrap();
     if src_addr != Ipv4Addr::new(127, 0, 0, 1) {
-        return Err(Forbidden(Some("Source not from localhost.".to_string())));
+        return Err(Forbidden(Some("Source not from localhost.")));
     }
     let addr = ip.unwrap();
     eprintln!("Blocking {}", addr);
@@ -236,7 +234,7 @@ fn block(ip: Option<String>, client_addr: ClientAddr) -> Result<NamedFile, Forbi
             1
         )
         .is_ok());
-    NamedFile::open("static/success.html").map_err(|e| Forbidden(Some(e.to_string())))
+    Ok(NamedFile::open("static/success.html").unwrap())
 }
 
 #[post("/unblock/<ip>")]
@@ -273,7 +271,7 @@ fn spectrecss() -> io::Result<NamedFile> {
 }
 
 #[catch(404)]
-fn not_found(_req: &Request) -> Redirect {
+fn not_found(_: &Request) -> Redirect {
     Redirect::to("/")
 }
 
