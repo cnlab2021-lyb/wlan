@@ -195,7 +195,10 @@ fn login(
 }
 
 #[post("/block/<ip>")]
-fn block(ip: Option<String>, client_addr: ClientAddr) -> Result<NamedFile, Forbidden<&'static str>> {
+fn block(
+    ip: Option<String>,
+    client_addr: ClientAddr,
+) -> Result<NamedFile, Forbidden<&'static str>> {
     let src_addr = client_addr.get_ipv4().unwrap();
     if src_addr != Ipv4Addr::new(127, 0, 0, 1) {
         return Err(Forbidden(Some("Source not from localhost.")));
