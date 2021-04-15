@@ -20,7 +20,7 @@
                     <tr>
                         <td>{{ record.ip }}</td>
                         <td>{{ record.packets }}</td>
-                        <td>{{ record.bytes }}</td>
+                        <td>{{ record.bandwidth }}</td>
                         {% if record.blocked %}
                           <td>
                               <form action="unblock/{{ record.ip }}" method="post" style="margin: 0">

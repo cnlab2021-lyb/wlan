@@ -1,4 +1,5 @@
 #![feature(proc_macro_hygiene, decl_macro)]
+#![feature(slice_group_by)]
 
 #[macro_use]
 extern crate rocket;
@@ -61,17 +62,46 @@ fn index(client_addr: ClientAddr) -> io::Result<NamedFile> {
 }
 
 fn parse_iptables(output: String) -> Vec<Record> {
-    output
+    let mut records: Vec<_> = output
         .lines()
         .skip(2)
         .into_iter()
         .map(|line| {
             let stat: Vec<_> = line.split_whitespace().into_iter().collect();
+            if stat[7] == "0.0.0.0/0" {
+                return Record {
+                    ip: String::from(stat[8]),
+                    packets: stat[0].parse::<usize>().unwrap(),
+                    bandwidth: stat[1].parse::<usize>().unwrap(),
+                    blocked: stat[2] == "DROP",
+                };
+            } else {
+                return Record {
+                    ip: String::from(stat[7]),
+                    packets: stat[0].parse::<usize>().unwrap(),
+                    bandwidth: stat[1].parse::<usize>().unwrap(),
+                    blocked: stat[2] == "DROP",
+                };
+            }
+        })
+        .collect();
+    records.sort_by(|a, b| a.ip.cmp(&b.ip));
+    records
+        .group_by(|a, b| a.ip == b.ip)
+        .map(|x| {
+            let mut bandwidth_sum: usize = 0;
+            let mut packet_sum: usize = 0;
+            let mut blocked_sum: bool = false;
+            for y in x {
+                bandwidth_sum += y.bandwidth;
+                packet_sum += y.packets;
+                blocked_sum |= y.blocked;
+            }
             Record {
-                ip: String::from(stat[7]),
-                packets: stat[0].parse::<usize>().unwrap(),
-                bandwidth: stat[1].parse::<usize>().unwrap(),
-                blocked: stat[2] == "DROP",
+                ip: x[0].ip.clone(),
+                blocked: blocked_sum,
+                bandwidth: bandwidth_sum,
+                packets: packet_sum,
             }
         })
         .collect()
@@ -187,7 +217,33 @@ fn login(
         .append(
             "filter",
             "FORWARD",
-            format!("-i {} -s {} -j ACCEPT", ifname, addr).as_str()
+            format!(
+                "-i {} -s {} -m conntrack --ctstate NEW -j ACCEPT",
+                ifname, addr
+            )
+            .as_str()
+        )
+        .is_ok());
+    assert!(ipt
+        .append(
+            "filter",
+            "FORWARD",
+            format!(
+                "-s {} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
+                addr
+            )
+            .as_str()
+        )
+        .is_ok());
+    assert!(ipt
+        .append(
+            "filter",
+            "FORWARD",
+            format!(
+                "-d {} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
+                addr
+            )
+            .as_str()
         )
         .is_ok());
 
@@ -218,7 +274,33 @@ fn block(
         .delete(
             "filter",
             "FORWARD",
-            format!("-i {} -s {} -j ACCEPT", ifname, addr).as_str()
+            format!(
+                "-i {} -s {} -m conntrack --ctstate NEW -j ACCEPT",
+                ifname, addr
+            )
+            .as_str()
+        )
+        .is_ok());
+    assert!(ipt
+        .delete(
+            "filter",
+            "FORWARD",
+            format!(
+                "-s {} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
+                addr
+            )
+            .as_str()
+        )
+        .is_ok());
+    assert!(ipt
+        .delete(
+            "filter",
+            "FORWARD",
+            format!(
+                "-d {} -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
+                addr
+            )
+            .as_str()
         )
         .is_ok());
     assert!(ipt
