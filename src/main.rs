@@ -68,20 +68,12 @@ fn parse_iptables(output: String) -> Vec<Record> {
         .into_iter()
         .map(|line| {
             let stat: Vec<_> = line.split_whitespace().into_iter().collect();
-            if stat[7] == "0.0.0.0/0" {
-                return Record {
-                    ip: String::from(stat[8]),
-                    packets: stat[0].parse::<usize>().unwrap(),
-                    bandwidth: stat[1].parse::<usize>().unwrap(),
-                    blocked: stat[2] == "DROP",
-                };
-            } else {
-                return Record {
-                    ip: String::from(stat[7]),
-                    packets: stat[0].parse::<usize>().unwrap(),
-                    bandwidth: stat[1].parse::<usize>().unwrap(),
-                    blocked: stat[2] == "DROP",
-                };
+            let index = if stat[7] == "0.0.0.0/0" { 8 } else { 7 };
+            Record {
+                ip: String::from(stat[index]),
+                packets: stat[0].parse::<usize>().unwrap(),
+                bandwidth: stat[1].parse::<usize>().unwrap(),
+                blocked: stat[2] == "DROP",
             }
         })
         .collect();
@@ -210,7 +202,7 @@ fn login(
             "nat",
             "PREROUTING",
             format!("-i {} -s {} -j ACCEPT", ifname, addr).as_str(),
-            3 // TODO: Proper ordering
+            3
         )
         .is_ok());
     assert!(ipt
