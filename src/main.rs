@@ -168,7 +168,7 @@ fn login(
     assert!(results.len() <= 1);
 
     if !is_register {
-        if results.len() == 0 {
+        if results.is_empty() {
             return Redirect::to("/");
         }
         let result = bcrypt::verify(&user.password, &results[0].password).unwrap_or(false);
@@ -180,8 +180,8 @@ fn login(
         if results.len() == 1 {
             return Redirect::to("/");
         }
-        let hash = bcrypt::hash(&user.password, 10).unwrap_or(String::new());
-        if hash.len() == 0 {
+        let hash = bcrypt::hash(&user.password, 10).unwrap_or_default();
+        if hash.is_empty() {
             return Redirect::to("/");
         }
 
